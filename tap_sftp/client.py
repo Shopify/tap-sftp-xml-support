@@ -30,7 +30,6 @@ class SFTPConnection():
         self.port = int(port or 22)
         self.decrypted_file = None
         self.key = None
-        self.transport = None
 
         if private_key_file:
             key_path = os.path.expanduser(private_key_file)
@@ -54,10 +53,10 @@ class SFTPConnection():
 
     def _attempt_connection(self):
         try:
-            self.transport = paramiko.Transport((self.host, self.port))
-            self.transport.use_compression(True)
-            self.transport.connect(username=self.username, password=self.password, hostkey=None, pkey=self.key)
-            self.__sftp = paramiko.SFTPClient.from_transport(self.transport)
+            transport = paramiko.Transport((self.host, self.port))
+            transport.use_compression(True)
+            transport.connect(username=self.username, password=self.password, hostkey=None, pkey=self.key)
+            self.__sftp = paramiko.SFTPClient.from_transport(transport)
         except (AuthenticationException, SSHException) as ex:
             LOGGER.warning('Connection attempt failed: %s', ex)
             self.close()
@@ -76,8 +75,6 @@ class SFTPConnection():
         if hasattr(self, 'sftp') and self.sftp is not None:
             self.sftp.close()
 
-        if self.transport is not None:
-            self.transport.close()
         # decrypted files require an open file object, so close it
         if self.decrypted_file:
             self.decrypted_file.close()
