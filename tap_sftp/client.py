@@ -52,10 +52,11 @@ class SFTPConnection():
         LOGGER.info('Connection successful')
 
     def _attempt_connection(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.get_transport().get_security_options().key_types = ['ssh-rsa', 'ecdsa-sha2-nistp256']
         try:
-            ssh_client = paramiko.SSHClient()
-            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh_client.connect(
+            client.connect(
                 hostname=self.host,
                 port=self.port,
                 username=self.username,
@@ -64,12 +65,18 @@ class SFTPConnection():
                 compress=True,
                 timeout=120
             )
-            self.sftp = ssh_client.open_sftp()
-        except (AuthenticationException, SSHException) as ex:
-            LOGGER.warning('Connection attempt failed: %s', ex)
-            if ssh_client:
-                ssh_client.close()
-            raise
+            self.sftp = client.open_sftp()
+        except paramiko.AuthenticationException as ex:
+            LOGGER.error('AuthenticationException, please verify your credentials: %s', ex)
+        except paramiko.SSHException as ex:
+            LOGGER.error('SSHException, could not establish SSH connection: %s', ex)
+        except paramiko.BadHostKeyException as ex:
+            LOGGER.error('BadHostKeyException, bad host key: %s', ex)
+        except Exception as ex:
+            LOGGER.error('Exception, failed to connect or establish SFTP session: %s', ex)
+        finally:
+            if client:
+                client.close()
 
     def close(self):
         if self.sftp is not None:
