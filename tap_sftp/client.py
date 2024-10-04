@@ -55,21 +55,17 @@ class SFTPConnection:
         LOGGER.info("Connection successful")
 
     def _attempt_connection(self):
-        transport = paramiko.Transport(
-            hostname=self.host,
-            port=self.port,
-        )
-        transport.get_security_options().ciphers = ("ssh-rsa", "ecdsa-sha2-nistp256")
+        paramiko.Transport._preferred_ciphers = ("ssh-rsa", "ecdsa-sha2-nistp256", )
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            transport.connect(
+            client.connect(
+                hostname=self.host,
+                port=self.port,
                 username=self.username,
-                password=self.password,
-                pkey=self.key,
                 compress=True,
-                timeout=120,
+                timeout=120
             )
-            client = paramiko.SSHClient().from_transport(transport)
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.sftp = client.open_sftp()
         except paramiko.AuthenticationException as ex:
             LOGGER.error(
